@@ -13,6 +13,8 @@ bbyte/
 └── cms/      # Payload CMS (Next.js + SQLite)
 ```
 
+![BrainByte micro-learning flow](docs/brainbyte-micro-learning.png)
+
 ### Mobile (`/mobile`)
 React Native app built with Expo. Features a TikTok-style swipeable feed of "bytes" (bite-sized knowledge cards), a focus session timer, a saved library, a leaderboard, interactive lessons, and user profiles. State is managed with Zustand and React Query, with Firebase for auth persistence.
 
