@@ -50,6 +50,24 @@ REST API written in Rust using [Axum](https://github.com/tokio-rs/axum). Runs on
 
 ---
 
+## Current Status
+
+The app is currently in a development phase with temporary Firebase integration. Firebase is used for authentication (Firebase Auth) and data persistence (Firestore) to enable quick prototyping and testing. This setup allows for user management and real-time data sync but is not the final architecture. The mobile app loads Firebase configuration from environment variables to maintain security.
+
+---
+
+## Roadmap
+
+### Future Integration with Rust API
+The long-term plan is to fully integrate the Rust API for all backend operations, replacing Firebase with:
+- **Updated Algorithms**: Implement advanced recommendation algorithms in Rust for personalized content delivery, adaptive difficulty, and user engagement optimization.
+- **Real Data**: Transition from Firebase to the Rust API for handling user data, facts, leaderboards, and all app interactions, ensuring better performance, scalability, and data control.
+- **Enhanced Features**: Add machine learning models for content generation, user behavior analysis, and accessibility improvements.
+
+This will provide a more robust, self-hosted solution with improved privacy and customization.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -74,10 +92,10 @@ REST API written in Rust using [Axum](https://github.com/tokio-rs/axum). Runs on
 
 ```bash
 cd mobile
-npm install
-npm start          # opens Expo dev server
-npm run android    # run on Android
-npm run ios        # run on iOS
+yarn
+yarn start          # opens Expo dev server
+yarn android    # run on Android
+yarn ios        # run on iOS
 ```
 
 ### 2. API
@@ -92,8 +110,8 @@ cargo run
 
 ```bash
 cd cms
-npm install
-npm run dev
+yarn
+yarn dev
 # CMS available at http://localhost:3000/admin
 ```
 
@@ -133,6 +151,18 @@ cms/src/
 │   └── Users.ts
 └── app/          # Next.js app router
 ```
+
+---
+
+
+## Link to the app download (firebase auth version, the interruptions feature won't work since this is not play signed) 🔗
+[BrainByte v0.1.0-beta](https://appdistribution.firebase.dev/i/3d909b220c854d4d)
+
+---
+
+## Contributions
+
+Contributions are appreciated! Whether it's bug fixes, feature enhancements, documentation improvements, or algorithm development, feel free to reach out or submit pull requests. Connect with the maintainer at jhanishant2000@gmail.com for discussions or collaboration opportunities.
 
 ---
 
