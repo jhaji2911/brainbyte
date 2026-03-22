@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Payload CMS
+bbyte-cms.db
+bbyte-cms.db-shm
+bbyte-cms.db-wal
+media/
+public/media/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# TypeScript
+*.tsbuildinfo
+src/payload-types.ts
+
+# OS
+.DS_Store

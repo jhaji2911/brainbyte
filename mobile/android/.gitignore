@@ -1,0 +1,25 @@
+# OSX
+#
+.DS_Store
+
+# Android/IntelliJ
+#
+build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# Bundle artifacts
+*.jsbundle
+
+# Firebase / Google Services
+google-services.json
+GoogleService-Info.plist
+
+# Signing keystores
+*.keystore
+*.jks
+keystore.properties

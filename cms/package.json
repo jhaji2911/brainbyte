@@ -1,0 +1,37 @@
+{
+  "name": "bbyte-cms",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "payload": "payload",
+    "generate:types": "payload generate:types",
+    "generate:importmap": "payload generate:importmap",
+    "seed": "node --import tsx/esm scripts/seed.ts"
+  },
+  "dependencies": {
+    "@payloadcms/db-sqlite": "^3.80.0",
+    "@payloadcms/next": "^3.80.0",
+    "@payloadcms/richtext-lexical": "^3.80.0",
+    "@payloadcms/ui": "^3.80.0",
+    "dotenv": "^16.6.1",
+    "graphql": "^16.8.1",
+    "next": "^15.3.0",
+    "payload": "^3.80.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.32.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "5.7.2"
+  },
+  "engines": {
+    "node": ">=18.20.2"
+  }
+}

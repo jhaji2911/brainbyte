@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Facts are publicly readable; only backend/admin can write
+    match /facts/{factId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Leaderboard is publicly readable; only backend/admin can write
+    match /leaderboard/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Users can only read and write their own document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

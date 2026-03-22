@@ -1,0 +1,6 @@
+{
+  "name": "react-native-worklets",
+  "version": "0.0.1",
+  "description": "Local stub to shadow the react-native-worklets in a parent node_modules directory, which lacks @babel/core in its resolution scope.",
+  "main": "index.js"
+}

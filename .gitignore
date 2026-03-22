@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Environment files (catch-all in case sub-project .gitignores are missed)
+.env
+.env.local
+.env.*.local
