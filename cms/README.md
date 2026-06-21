@@ -51,7 +51,7 @@ After creating an admin account, run:
 npm run seed
 ```
 
-This imports the five hard-coded facts from the Rust API seed data into Payload so you have content to work with immediately.
+This imports the eight hard-coded facts from the Rust API seed data into Payload so you have content to work with immediately.
 
 ## REST API
 

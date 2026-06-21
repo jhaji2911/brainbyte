@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,16 +7,16 @@ import {
   Image,
   ScrollView,
   Dimensions,
-} from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomNav } from './BottomNav';
-import { InitialsAvatar } from './InitialsAvatar';
-import { Byte, Screen, UserProfile } from '../types';
-import { COLORS } from '../theme';
+} from "react-native";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomNav } from "./BottomNav";
+import { InitialsAvatar } from "./InitialsAvatar";
+import { Byte, Screen, UserProfile } from "../types";
+import { COLORS } from "../theme";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 interface Props {
   bytes: Byte[];
@@ -27,7 +27,13 @@ interface Props {
   onSelectByte: (id: string) => void;
 }
 
-const CHIPS = ['All Bytes', 'Psychology', 'Neuroscience', 'Vocab', 'Productivity'];
+const CHIPS = [
+  "All Bytes",
+  "Psychology",
+  "Neuroscience",
+  "Vocab",
+  "Productivity",
+];
 
 export const Library: React.FC<Props> = ({
   bytes,
@@ -38,12 +44,13 @@ export const Library: React.FC<Props> = ({
   onSelectByte,
 }) => {
   const insets = useSafeAreaInsets();
-  const [activeChip, setActiveChip] = React.useState('All Bytes');
+  const [activeChip, setActiveChip] = React.useState("All Bytes");
   const savedBytes = bytes
     .filter((b) => savedIds.includes(b.id))
     .filter((b) => {
-      if (activeChip === 'All Bytes') return true;
-      if (activeChip === 'Vocab') return b.category.toLowerCase().includes('vocab');
+      if (activeChip === "All Bytes") return true;
+      if (activeChip === "Vocab")
+        return b.category.toLowerCase().includes("vocab");
       return b.category.toLowerCase().includes(activeChip.toLowerCase());
     });
   const recentBytes = savedBytes.slice(0, 2);
@@ -54,15 +61,15 @@ export const Library: React.FC<Props> = ({
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity
           style={styles.profileRow}
-          onPress={() => onNavigate('profile')}
+          onPress={() => onNavigate("profile")}
           activeOpacity={0.7}
         >
           <View style={styles.avatar}>
-            {user?.avatar && !user.avatar.includes('pravatar') ? (
+            {user?.avatar && !user.avatar.includes("pravatar") ? (
               <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
             ) : (
               <InitialsAvatar
-                name={user?.name ?? 'BB'}
+                name={user?.name ?? "BB"}
                 size={36}
                 borderWidth={0}
               />
@@ -72,16 +79,22 @@ export const Library: React.FC<Props> = ({
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.streakBadge}
-          onPress={() => onNavigate('leaderboard')}
+          onPress={() => onNavigate("leaderboard")}
           activeOpacity={0.7}
         >
-          <Text style={styles.streakText}>🔥 {user?.streak ?? 12}</Text>
+          <View style={styles.streakRow}>
+            <Feather name="activity" size={14} color={COLORS.primary} />
+            <Text style={styles.streakText}>{user?.streak ?? 0}</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 68 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 68 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Page title */}
@@ -112,7 +125,12 @@ export const Library: React.FC<Props> = ({
               style={[styles.chip, activeChip === chip && styles.chipActive]}
             >
               {activeChip === chip && <View style={styles.chipDot} />}
-              <Text style={[styles.chipText, activeChip === chip && styles.chipTextActive]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  activeChip === chip && styles.chipTextActive,
+                ]}
+              >
                 {chip}
               </Text>
             </TouchableOpacity>
@@ -123,15 +141,20 @@ export const Library: React.FC<Props> = ({
         {savedBytes.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <Feather name="bookmark" size={40} color={COLORS.onSurfaceVariant} />
+              <Feather
+                name="bookmark"
+                size={40}
+                color={COLORS.onSurfaceVariant}
+              />
             </View>
             <Text style={styles.emptyTitle}>No saved bytes yet</Text>
             <Text style={styles.emptySubtitle}>
-              Start exploring the feed to build your personal library of knowledge.
+              Start exploring the feed to build your personal library of
+              knowledge.
             </Text>
             <TouchableOpacity
               style={styles.emptyButton}
-              onPress={() => onNavigate('feed')}
+              onPress={() => onNavigate("feed")}
               activeOpacity={0.85}
             >
               <Text style={styles.emptyButtonText}>Explore Feed</Text>
@@ -155,12 +178,18 @@ export const Library: React.FC<Props> = ({
                   </View>
                   <TouchableOpacity
                     onPress={() => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      Haptics.notificationAsync(
+                        Haptics.NotificationFeedbackType.Warning,
+                      );
                       onRemoveByte(byte.id);
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Feather name="trash-2" size={18} color={COLORS.onSurfaceVariant} />
+                    <Feather
+                      name="trash-2"
+                      size={18}
+                      color={COLORS.onSurfaceVariant}
+                    />
                   </TouchableOpacity>
                 </View>
 
@@ -170,13 +199,19 @@ export const Library: React.FC<Props> = ({
                 </Text>
 
                 <View style={styles.byteCardFooter}>
-                  <Text style={styles.byteTime}>{byte.savedAt || 'Just now'}</Text>
+                  <Text style={styles.byteTime}>
+                    {byte.savedAt || "Just now"}
+                  </Text>
                   <TouchableOpacity
                     style={styles.reviewButton}
-                    onPress={() => onNavigate('interactive')}
+                    onPress={() => onNavigate("interactive")}
                   >
                     <Text style={styles.reviewText}>Review</Text>
-                    <Feather name="chevron-right" size={14} color={COLORS.secondary} />
+                    <Feather
+                      name="chevron-right"
+                      size={14}
+                      color={COLORS.secondary}
+                    />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -189,14 +224,16 @@ export const Library: React.FC<Props> = ({
           <Text style={styles.recentTitle}>Recent Activity</Text>
           <View style={styles.recentList}>
             {recentBytes.length === 0 ? (
-              <Text style={styles.recentEmpty}>Your saved bytes will show up here.</Text>
+              <Text style={styles.recentEmpty}>
+                Your saved bytes will show up here.
+              </Text>
             ) : (
               recentBytes.map((byte, index) => (
                 <RecentItem
                   key={byte.id}
-                  icon={index === 0 ? 'brain' : 'zap'}
+                  icon={index === 0 ? "brain" : "zap"}
                   title={byte.title}
-                  time={byte.savedAt || 'Saved recently'}
+                  time={byte.savedAt || "Saved recently"}
                   borderColor={index === 0 ? COLORS.primary : COLORS.secondary}
                   onPress={() => onSelectByte(byte.id)}
                 />
@@ -230,7 +267,7 @@ const RecentItem = ({
     style={[styles.recentCard, { borderLeftColor: borderColor }]}
   >
     <View style={styles.recentIconBox}>
-      {icon === 'brain' ? (
+      {icon === "brain" ? (
         <MaterialCommunityIcons name="brain" size={22} color={COLORS.primary} />
       ) : (
         <Feather name="zap" size={22} color={COLORS.primary} />
@@ -250,22 +287,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   header: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 52,
     paddingBottom: 12,
-    backgroundColor: COLORS.surfaceContainerLow + 'cc',
+    backgroundColor: COLORS.surfaceContainerLow + "cc",
   },
   profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   avatar: {
@@ -273,14 +310,14 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: COLORS.surfaceContainerHighest,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  avatarImg: { width: '100%', height: '100%' },
+  avatarImg: { width: "100%", height: "100%" },
   appName: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: "900",
     color: COLORS.primary,
     letterSpacing: -1,
   },
@@ -290,9 +327,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 50,
   },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   streakText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: "900",
     color: COLORS.primary,
   },
   scroll: { flex: 1 },
@@ -304,7 +342,7 @@ const styles = StyleSheet.create({
   titleBlock: { marginBottom: 24 },
   pageTitle: {
     fontSize: 44,
-    fontWeight: '900',
+    fontWeight: "900",
     color: COLORS.onSurface,
     letterSpacing: -1.5,
     marginBottom: 8,
@@ -319,19 +357,19 @@ const styles = StyleSheet.create({
     paddingRight: 24,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 50,
     backgroundColor: COLORS.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: "rgba(255,255,255,0.05)",
   },
   chipActive: {
     backgroundColor: COLORS.primary,
-    borderColor: 'transparent',
+    borderColor: "transparent",
     shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -345,8 +383,8 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1,
     color: COLORS.onSurfaceVariant,
   },
@@ -354,7 +392,7 @@ const styles = StyleSheet.create({
     color: COLORS.black,
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 60,
   },
   emptyIcon: {
@@ -362,21 +400,21 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: COLORS.surfaceContainer,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 24,
     opacity: 0.4,
   },
   emptyTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.onSurface,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 15,
     color: COLORS.onSurfaceVariant,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 260,
     lineHeight: 22,
   },
@@ -389,7 +427,7 @@ const styles = StyleSheet.create({
   },
   emptyButtonText: {
     color: COLORS.black,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 14,
   },
   bytesList: { gap: 16, marginBottom: 40 },
@@ -398,32 +436,32 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: "rgba(255,255,255,0.05)",
   },
   byteCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   byteCategoryBadge: {
-    backgroundColor: COLORS.primary + '1a',
+    backgroundColor: COLORS.primary + "1a",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 50,
     borderWidth: 1,
-    borderColor: COLORS.primary + '33',
+    borderColor: COLORS.primary + "33",
   },
   byteCategoryText: {
     fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1.5,
     color: COLORS.primary,
   },
   byteTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.onSurface,
     marginBottom: 8,
     letterSpacing: -0.5,
@@ -435,55 +473,55 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   byteCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: "rgba(255,255,255,0.05)",
     paddingTop: 12,
   },
   byteTime: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     color: COLORS.onSurfaceVariant,
     letterSpacing: 1,
   },
   reviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   reviewText: {
     fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1.5,
     color: COLORS.secondary,
   },
   recentSection: { marginTop: 8 },
   recentTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 2.5,
     color: COLORS.onSurfaceVariant,
     opacity: 0.5,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
   },
   recentEmpty: {
     color: COLORS.onSurfaceVariant,
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
   recentList: { gap: 12 },
   recentCard: {
     backgroundColor: COLORS.surfaceContainer,
     borderRadius: 16,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 14,
     borderLeftWidth: 4,
   },
@@ -492,19 +530,19 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     backgroundColor: COLORS.surfaceContainerHighest,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   recentTitle_: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.onSurface,
     marginBottom: 2,
   },
   recentTime: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1,
     color: COLORS.onSurfaceVariant,
   },

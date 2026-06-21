@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -8,14 +8,14 @@ import {
   Animated,
   ScrollView,
   Dimensions,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { BottomNav } from './BottomNav';
-import { Byte, Screen, UserProfile } from '../types';
-import { COLORS } from '../theme';
+} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { BottomNav } from "./BottomNav";
+import { Byte, Screen, UserProfile } from "../types";
+import { COLORS } from "../theme";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 interface Props {
   byte: Byte | null;
@@ -35,7 +35,7 @@ export const FactDetail: React.FC<Props> = ({
   onSaveByte,
 }) => {
   const [showToast, setShowToast] = React.useState(false);
-  const [toastMessage, setToastMessage] = React.useState('');
+  const [toastMessage, setToastMessage] = React.useState("");
   const toastOpacity = React.useRef(new Animated.Value(0)).current;
   const toastY = React.useRef(new Animated.Value(60)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
@@ -43,8 +43,16 @@ export const FactDetail: React.FC<Props> = ({
 
   React.useEffect(() => {
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-      Animated.timing(opacityAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
@@ -52,13 +60,29 @@ export const FactDetail: React.FC<Props> = ({
     setToastMessage(message);
     setShowToast(true);
     Animated.parallel([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-      Animated.timing(toastY, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastY, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       setTimeout(() => {
         Animated.parallel([
-          Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-          Animated.timing(toastY, { toValue: 60, duration: 250, useNativeDriver: true }),
+          Animated.timing(toastOpacity, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(toastY, {
+            toValue: 60,
+            duration: 250,
+            useNativeDriver: true,
+          }),
         ]).start(() => setShowToast(false));
       }, 1500);
     });
@@ -70,12 +94,12 @@ export const FactDetail: React.FC<Props> = ({
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.profileRow}
-          onPress={() => onNavigate('profile')}
+          onPress={() => onNavigate("profile")}
           activeOpacity={0.7}
         >
           <View style={styles.avatar}>
             <Image
-              source={{ uri: user?.avatar ?? 'https://i.pravatar.cc/100?u=me' }}
+              source={{ uri: user?.avatar ?? "https://i.pravatar.cc/100?u=me" }}
               style={styles.avatarImg}
             />
           </View>
@@ -83,10 +107,13 @@ export const FactDetail: React.FC<Props> = ({
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.streakBadge}
-          onPress={() => onNavigate('leaderboard')}
+          onPress={() => onNavigate("leaderboard")}
           activeOpacity={0.7}
         >
-          <Text style={styles.streakText}>🔥 {user?.streak ?? 12}</Text>
+          <View style={styles.streakRow}>
+            <Feather name="activity" size={14} color={COLORS.primary} />
+            <Text style={styles.streakText}>{user?.streak ?? 0}</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -128,15 +155,20 @@ export const FactDetail: React.FC<Props> = ({
               {/* Category */}
               <View style={styles.categoryRow}>
                 <View style={styles.categoryDot} />
-                <Text style={styles.categoryText}>{byte?.category ?? 'BrainByte'}</Text>
+                <Text style={styles.categoryText}>
+                  {byte?.category ?? "BrainByte"}
+                </Text>
               </View>
 
               {/* Title */}
-              <Text style={styles.title}>{byte?.title ?? 'No fact selected'}</Text>
+              <Text style={styles.title}>
+                {byte?.title ?? "No fact selected"}
+              </Text>
 
               {/* Body */}
               <Text style={styles.body}>
-                {byte?.content ?? 'Select a byte from the feed to view details.'}
+                {byte?.content ??
+                  "Select a byte from the feed to view details."}
               </Text>
 
               {/* Source */}
@@ -154,20 +186,28 @@ export const FactDetail: React.FC<Props> = ({
                   activeOpacity={0.85}
                   onPress={() => {
                     if (!byte) return;
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Haptics.notificationAsync(
+                      Haptics.NotificationFeedbackType.Success,
+                    );
                     onSaveByte(byte.id);
-                    triggerToast(isSaved ? 'Already saved in Library.' : 'Byte saved to Library! 📚');
+                    triggerToast(
+                      isSaved
+                        ? "Already saved in Library."
+                        : "Byte saved to Library.",
+                    );
                   }}
                 >
                   <Feather name="bookmark" size={18} color={COLORS.black} />
-                  <Text style={styles.saveButtonText}>{isSaved ? 'Saved' : 'Save'}</Text>
+                  <Text style={styles.saveButtonText}>
+                    {isSaved ? "Saved" : "Save"}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.shareButton}
                   activeOpacity={0.85}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    triggerToast('Link copied to clipboard! 🚀');
+                    triggerToast("Link copied to clipboard");
                   }}
                 >
                   <Feather name="share-2" size={18} color={COLORS.white} />
@@ -182,11 +222,13 @@ export const FactDetail: React.FC<Props> = ({
                   activeOpacity={0.85}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                    onNavigate('interactive');
+                    onNavigate("interactive");
                   }}
                 >
                   <Feather name="play" size={16} color={COLORS.black} />
-                  <Text style={styles.lessonButtonText}>Start Interactive Lesson</Text>
+                  <Text style={styles.lessonButtonText}>
+                    Start Interactive Lesson
+                  </Text>
                 </TouchableOpacity>
               )}
             </ScrollView>
@@ -217,22 +259,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   header: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 52,
     paddingBottom: 12,
-    backgroundColor: COLORS.surfaceContainerLow + 'cc',
+    backgroundColor: COLORS.surfaceContainerLow + "cc",
   },
   profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   avatar: {
@@ -240,17 +282,17 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: COLORS.surfaceContainerHighest,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
   avatarImg: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   appName: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: "900",
     color: COLORS.primary,
     letterSpacing: -1,
   },
@@ -260,9 +302,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 50,
   },
+  streakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   streakText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: "900",
     color: COLORS.primary,
   },
   contentArea: {
@@ -270,14 +313,14 @@ const styles = StyleSheet.create({
     paddingTop: 100,
     paddingBottom: 100,
     paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   card: {
     width: width - 32,
     height: height * 0.72,
     borderRadius: 32,
-    overflow: 'hidden',
+    overflow: "hidden",
     backgroundColor: COLORS.surfaceContainerHigh,
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 8 },
@@ -287,44 +330,44 @@ const styles = StyleSheet.create({
   },
   bgImage: {
     ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   gradientTop: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    height: '45%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    height: "45%",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   gradientBottom: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: '70%',
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    height: "70%",
+    backgroundColor: "rgba(0,0,0,0.85)",
   },
   cardInner: {
     flex: 1,
     padding: 24,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   pageDots: {
-    position: 'absolute',
+    position: "absolute",
     top: 24,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 6,
   },
   dotInactive: {
     width: 28,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
   dotActive: {
     width: 40,
@@ -345,16 +388,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignSelf: 'flex-start',
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 50,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
   categoryDot: {
     width: 7,
@@ -368,14 +411,14 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1,
     color: COLORS.secondary,
   },
   title: {
     fontSize: 40,
-    fontWeight: '900',
+    fontWeight: "900",
     color: COLORS.white,
     letterSpacing: -1.5,
     lineHeight: 44,
@@ -388,11 +431,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.onSurfaceVariant,
     lineHeight: 22,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   sourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     marginTop: 4,
     marginBottom: 8,
@@ -400,19 +443,19 @@ const styles = StyleSheet.create({
   sourceText: {
     fontSize: 13,
     color: COLORS.primary,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   actionRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     marginTop: 8,
   },
   saveButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     backgroundColor: COLORS.primary,
     paddingVertical: 16,
@@ -425,34 +468,34 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: COLORS.black,
-    fontWeight: '900',
+    fontWeight: "900",
     fontSize: 13,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 2,
   },
   shareButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: "rgba(255,255,255,0.1)",
     paddingVertical: 16,
     borderRadius: 50,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
   shareButtonText: {
     color: COLORS.white,
-    fontWeight: '900',
+    fontWeight: "900",
     fontSize: 13,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 2,
   },
   lessonButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     backgroundColor: COLORS.primary,
     borderRadius: 16,
@@ -466,15 +509,15 @@ const styles = StyleSheet.create({
   },
   lessonButtonText: {
     color: COLORS.black,
-    fontWeight: '900',
+    fontWeight: "900",
     fontSize: 13,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 2,
   },
   toast: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 110,
-    alignSelf: 'center',
+    alignSelf: "center",
     backgroundColor: COLORS.secondary,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -488,7 +531,7 @@ const styles = StyleSheet.create({
   },
   toastText: {
     color: COLORS.black,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 14,
   },
 });

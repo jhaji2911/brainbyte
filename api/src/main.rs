@@ -1,3 +1,6 @@
+#[allow(dead_code)]
+mod agent_client;
+
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -16,13 +19,18 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use tokio::spawn;
 use tokio::sync::RwLock;
+use tower_http::cors::CorsLayer;
 
 type SharedState = Arc<AppState>;
 
 #[tokio::main]
 async fn main() {
     let state = Arc::new(AppState::seeded());
+
+    // Seed the RL-CoT agent with initial users and content (fire-and-forget)
+    seed_agent(&state).await;
 
     let app = Router::new()
         .route("/health", get(health))
@@ -37,6 +45,10 @@ async fn main() {
         .route("/facts/{id}/save", post(save_fact).delete(unsave_fact))
         .route("/leaderboard", get(get_leaderboard))
         .route("/cms/sync", post(cms_sync))
+        // ── RL-CoT Agent integration routes ──────────────────────
+        .route("/facts/recommended", get(recommended_facts))
+        .route("/facts/learn", post(learn_interaction))
+        .layer(CorsLayer::permissive())
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
@@ -261,6 +273,35 @@ struct ErrorResponse {
     error: String,
 }
 
+// ── RL-CoT Agent integration types ────────────────────────────────────────────
+
+#[derive(Serialize)]
+struct RecommendedFactsPayload {
+    facts: Vec<Fact>,
+    cot_trace: serde_json::Value,
+    timestamp: String,
+}
+
+#[derive(Deserialize)]
+struct LearnInteractionRequest {
+    content_id: String,
+    action: String,
+    dwell_time: Option<f64>,
+    rating: Option<f64>,
+}
+
+#[derive(Serialize)]
+struct LearnInteractionPayload {
+    reward: f64,
+    episode_id: String,
+    message: String,
+}
+
+#[derive(Deserialize)]
+struct RecommendedFactsQuery {
+    n_results: Option<i32>,
+}
+
 async fn health() -> Json<ApiResponse<HealthResponse>> {
     Json(ApiResponse {
         data: HealthResponse {
@@ -303,8 +344,18 @@ async fn register(
             profile: profile.clone(),
         },
     );
-    store.sessions.insert(token.clone(), user_id);
+    store.sessions.insert(token.clone(), user_id.clone());
     store.saved_facts.insert(profile.id.clone(), HashSet::new());
+
+    // Fire-and-forget: create user in the RL-CoT agent's memory
+    let agent_user_id = user_id.clone();
+    let agent_name = profile.name.clone();
+    spawn(async move {
+        if let Err(e) = agent_client::create_user(&agent_user_id, &agent_name, vec![], vec![]).await
+        {
+            eprintln!("[agent] failed to create user {}: {e}", agent_user_id);
+        }
+    });
 
     Ok(Json(ApiResponse {
         data: AuthPayload {
@@ -574,6 +625,83 @@ async fn save_state_change(
     }))
 }
 
+async fn recommended_facts(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Query(query): Query<RecommendedFactsQuery>,
+) -> Result<Json<ApiResponse<RecommendedFactsPayload>>, ApiError> {
+    let user_id = authorized_user_id(&state, &headers).await?;
+    let n_results = query.n_results.unwrap_or(10);
+
+    let agent_resp = agent_client::recommend(&user_id, n_results)
+        .await
+        .map_err(|e| ApiError::internal(format!("recommendation engine unavailable: {e}")))?;
+
+    // Map agent recommendations back to full Fact objects from the store,
+    // preserving the agent's ranking order. Fall back to all facts for any
+    // items the agent hasn't seen yet.
+    let store = state.store.read().await;
+    let mut seen_ids = HashSet::new();
+    let mut facts: Vec<Fact> = Vec::new();
+    for rec in &agent_resp.recommendations {
+        if let Some(fact) = store.facts.iter().find(|f| f.id == rec.id) {
+            facts.push(fact.clone());
+            seen_ids.insert(fact.id.clone());
+        }
+    }
+    // Append any facts not yet ranked by the agent
+    for fact in &store.facts {
+        if !seen_ids.contains(&fact.id) {
+            facts.push(fact.clone());
+        }
+    }
+    drop(store);
+
+    Ok(Json(ApiResponse {
+        data: RecommendedFactsPayload {
+            facts,
+            cot_trace: agent_resp.cot_trace,
+            timestamp: agent_resp.timestamp,
+        },
+    }))
+}
+
+async fn learn_interaction(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(payload): Json<LearnInteractionRequest>,
+) -> Result<Json<ApiResponse<LearnInteractionPayload>>, ApiError> {
+    let user_id = authorized_user_id(&state, &headers).await?;
+
+    // Verify the content exists
+    let store = state.store.read().await;
+    if !store.facts.iter().any(|f| f.id == payload.content_id) {
+        return Err(ApiError::not_found("fact not found"));
+    }
+    drop(store);
+
+    let dwell_time = payload.dwell_time.unwrap_or(0.0);
+    let rating = payload.rating.unwrap_or(0.0);
+
+    let agent_resp = agent_client::learn(
+        &user_id,
+        &payload.content_id,
+        &payload.action,
+        dwell_time,
+        rating,
+    )
+    .await
+    .map_err(|e| ApiError::internal(format!("learning engine unavailable: {e}")))?;
+
+    Ok(Json(ApiResponse {
+        data: LearnInteractionPayload {
+            reward: agent_resp.reward,
+            episode_id: agent_resp.episode_id,
+            message: agent_resp.message,
+        },
+    }))
+}
+
 async fn get_leaderboard(
     State(state): State<SharedState>,
     headers: HeaderMap,
@@ -762,9 +890,7 @@ async fn cms_sync(
 
     let cms_url =
         std::env::var("CMS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
-    let url = format!(
-        "{cms_url}/api/facts?where[status][equals]=published&depth=1&limit=200"
-    );
+    let url = format!("{cms_url}/api/facts?where[status][equals]=published&depth=1&limit=200");
 
     let client = reqwest::Client::new();
     let response = client
@@ -834,9 +960,77 @@ async fn cms_sync(
         }
     }
 
+    // Fire-and-forget: index newly synced content in the RL-CoT agent
+    if synced > 0 {
+        let items: Vec<agent_client::ContentIndexRequest> = store
+            .facts
+            .iter()
+            .filter(|f| f.created_by == "cms")
+            .map(|f| agent_client::ContentIndexRequest {
+                content_id: f.id.clone(),
+                title: f.title.clone(),
+                body: f.content.clone(),
+                category: f.category.clone(),
+                tags: vec![],
+                difficulty: 0.5,
+                source: f.source.clone().unwrap_or_default(),
+            })
+            .collect();
+        if !items.is_empty() {
+            spawn(async move {
+                if let Err(e) = agent_client::bulk_index_contents(items).await {
+                    eprintln!("[agent] failed to bulk-index CMS content: {e}");
+                }
+            });
+        }
+    }
+
     Ok(Json(ApiResponse {
         data: CmsSyncPayload { synced, skipped },
     }))
+}
+
+/// Seed the RL-CoT agent with initial users and content on startup.
+async fn seed_agent(state: &SharedState) {
+    let store = state.store.read().await;
+
+    // Create seeded users in the agent
+    for (user_id, record) in &store.users {
+        let uid = user_id.clone();
+        let name = record.profile.name.clone();
+        spawn(async move {
+            if let Err(e) = agent_client::create_user(&uid, &name, vec![], vec![]).await {
+                eprintln!("[agent] seed: failed to create user {uid}: {e}");
+            }
+        });
+    }
+
+    // Index all seeded facts in the agent
+    let items: Vec<agent_client::ContentIndexRequest> = store
+        .facts
+        .iter()
+        .map(|f| agent_client::ContentIndexRequest {
+            content_id: f.id.clone(),
+            title: f.title.clone(),
+            body: f.content.clone(),
+            category: f.category.clone(),
+            tags: vec![],
+            difficulty: 0.5,
+            source: f.source.clone().unwrap_or_default(),
+        })
+        .collect();
+
+    if !items.is_empty() {
+        let count = items.len();
+        spawn(async move {
+            match agent_client::bulk_index_contents(items).await {
+                Ok(_) => println!("[agent] seeded {count} content items"),
+                Err(e) => eprintln!("[agent] seed: failed to bulk-index content: {e}"),
+            }
+        });
+    }
+
+    drop(store);
 }
 
 fn seeded_facts() -> Vec<Fact> {
@@ -903,6 +1097,48 @@ fn seeded_facts() -> Vec<Fact> {
             content: "People tend to remember unfinished tasks better than completed ones, which is why open loops keep tugging at your attention.".to_string(),
             curated_by: None,
             image: Some("https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&q=80&w=1000".to_string()),
+            source: None,
+            progress: None,
+            saved_at: None,
+            created_by: "seed".to_string(),
+            created_at: Utc::now(),
+        },
+        Fact {
+            id: "fact-6".to_string(),
+            category: "Micro-game".to_string(),
+            title: "Morse Code: PULSE".to_string(),
+            content: "Learn the secret language of signals. Each letter in P-U-L-S-E has a unique dot-dash sequence. Tap short for dot, hold for dash.".to_string(),
+            curated_by: Some(Curator {
+                name: "Signal Academy".to_string(),
+                avatar: "https://picsum.photos/seed/morse/100/100".to_string(),
+            }),
+            image: None,
+            source: Some("Interactive Byte".to_string()),
+            progress: None,
+            saved_at: None,
+            created_by: "seed".to_string(),
+            created_at: Utc::now(),
+        },
+        Fact {
+            id: "fact-7".to_string(),
+            category: "Cognitive Science".to_string(),
+            title: "The Spacing Effect".to_string(),
+            content: "Information is retained far better when learning sessions are spaced out over time rather than crammed. Your brain needs sleep cycles to consolidate memories into long-term storage.".to_string(),
+            curated_by: None,
+            image: None,
+            source: Some("Cognitive Psychology Review".to_string()),
+            progress: None,
+            saved_at: None,
+            created_by: "seed".to_string(),
+            created_at: Utc::now(),
+        },
+        Fact {
+            id: "fact-8".to_string(),
+            category: "Philosophy".to_string(),
+            title: "Occam's Razor".to_string(),
+            content: "Among competing hypotheses, the one with fewest assumptions should be selected. Simpler explanations are, all else being equal, generally better than complex ones.".to_string(),
+            curated_by: None,
+            image: Some("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=1000".to_string()),
             source: None,
             progress: None,
             saved_at: None,

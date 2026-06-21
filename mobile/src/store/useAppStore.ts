@@ -1,10 +1,18 @@
-import { create } from 'zustand';
-import { Byte, LeaderboardSeason, LeaderboardUser, OnboardingProfile, Screen, UserProfile } from '../types';
-import { BYTES, LEADERBOARD } from '../constants';
+import { create } from "zustand";
+import {
+  Byte,
+  LeaderboardSeason,
+  LeaderboardUser,
+  OnboardingProfile,
+  Screen,
+  UserProfile,
+} from "../types";
+import { BYTES, LEADERBOARD } from "../constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const INITIAL_ONBOARDING: OnboardingProfile = {
-  selectedPoison: 'History',
-  dailyGoal: 'Growth (5-7 bytes)',
+  selectedPoison: "",
+  dailyGoal: "Growth (5-7 bytes)",
   interruptsEnabled: false,
   updatedAt: new Date().toISOString(),
 };
@@ -21,6 +29,7 @@ export interface AppStore {
   user: UserProfile | null;
   setAuth: (token: string, user: UserProfile) => void;
   setUser: (user: UserProfile) => void;
+  clearAuth: () => void;
 
   // Bytes
   bytes: Byte[];
@@ -35,7 +44,10 @@ export interface AppStore {
   // Leaderboard
   leaderboard: LeaderboardUser[];
   season: LeaderboardSeason | null;
-  setLeaderboard: (entries: LeaderboardUser[], season: LeaderboardSeason) => void;
+  setLeaderboard: (
+    entries: LeaderboardUser[],
+    season: LeaderboardSeason,
+  ) => void;
 
   // Onboarding
   onboarding: OnboardingProfile;
@@ -67,7 +79,7 @@ export interface AppStore {
 }
 
 export const useAppStore = create<AppStore>((set) => ({
-  currentScreen: 'splash',
+  currentScreen: "splash",
   setScreen: (screen) => set({ currentScreen: screen }),
 
   pendingScreen: null,
@@ -75,26 +87,36 @@ export const useAppStore = create<AppStore>((set) => ({
 
   authToken: null,
   user: null,
-  setAuth: (token, user) => set({ authToken: token, user }),
-  setUser: (user) => set({ user }),
+  setAuth: (token, user) => {
+    AsyncStorage.setItem("auth_token", token).catch(() => {});
+    AsyncStorage.setItem("auth_user", JSON.stringify(user)).catch(() => {});
+    set({ authToken: token, user });
+  },
+  setUser: (user) => {
+    AsyncStorage.setItem("auth_user", JSON.stringify(user)).catch(() => {});
+    set({ user });
+  },
+  clearAuth: () => {
+    AsyncStorage.multiRemove(["auth_token", "auth_user"]).catch(() => {});
+    set({ authToken: null, user: null });
+  },
 
   bytes: BYTES,
   setBytes: (incoming) => {
-    // Always ensure the interactive Morse Code byte is present in the feed
-    const interactiveFromConstants = BYTES.filter((b) => b.interactive);
-    const incomingIds = new Set(incoming.map((b) => b.id));
-    const toInject = interactiveFromConstants.filter((b) => !incomingIds.has(b.id));
-    // Inject interactive bytes near the top (position 2) so they surface early
-    const merged = [...incoming];
-    toInject.forEach((b, i) => merged.splice(Math.min(2 + i, merged.length), 0, b));
-    set({ bytes: merged });
+    // No hardcoded content injection — all content comes from the v2 backend
+    set({ bytes: incoming });
   },
-  savedBytes: ['3', '4', '5'],
+  savedBytes: [],
   setSavedBytes: (ids) => set({ savedBytes: ids }),
   addSavedByte: (id) =>
-    set((s) => ({ savedBytes: s.savedBytes.includes(id) ? s.savedBytes : [...s.savedBytes, id] })),
-  removeSavedByte: (id) => set((s) => ({ savedBytes: s.savedBytes.filter((b) => b !== id) })),
-  selectedByteId: BYTES[1]?.id ?? null,
+    set((s) => ({
+      savedBytes: s.savedBytes.includes(id)
+        ? s.savedBytes
+        : [...s.savedBytes, id],
+    })),
+  removeSavedByte: (id) =>
+    set((s) => ({ savedBytes: s.savedBytes.filter((b) => b !== id) })),
+  selectedByteId: null,
   setSelectedByteId: (id) => set({ selectedByteId: id }),
 
   leaderboard: LEADERBOARD,
@@ -103,7 +125,8 @@ export const useAppStore = create<AppStore>((set) => ({
 
   onboarding: INITIAL_ONBOARDING,
   hasCompletedOnboarding: false,
-  setOnboarding: (profile) => set({ onboarding: profile, hasCompletedOnboarding: true }),
+  setOnboarding: (profile) =>
+    set({ onboarding: profile, hasCompletedOnboarding: true }),
   setHasCompletedOnboarding: (value) => set({ hasCompletedOnboarding: value }),
   updateOnboardingPoison: (value) =>
     set((s) => ({ onboarding: { ...s.onboarding, selectedPoison: value } })),
@@ -118,7 +141,7 @@ export const useAppStore = create<AppStore>((set) => ({
     set({ interruptOverlayVisible: visible, interruptByte: byte ?? null }),
 
   bootstrapProgress: 0.18,
-  bootstrapLabel: 'System Initializing',
+  bootstrapLabel: "System Initializing",
   setBootstrapProgress: (v) => set({ bootstrapProgress: v }),
   setBootstrapLabel: (v) => set({ bootstrapLabel: v }),
 

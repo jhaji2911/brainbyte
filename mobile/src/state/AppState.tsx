@@ -1,11 +1,18 @@
-import React from 'react';
-import { Alert, Linking, Platform } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
-import { api } from '../api';
-import { Screen } from '../types';
-import { useAppStore } from '../store/useAppStore';
-import { appMonitor, goalToCooldownMs, POISON_APP_PACKAGES } from '../lib/appMonitor';
+import React from "react";
+import { Alert, Linking, Platform } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { rustApi } from "../rust_api";
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
+import { Screen } from "../types";
+import { useAppStore } from "../store/useAppStore";
+import {
+  appMonitor,
+  goalToCooldownMs,
+  POISON_APP_PACKAGES,
+} from "../lib/appMonitor";
 
 // AppStateProvider is kept for structural compatibility but is now a no-op.
 // All state lives in the Zustand store; queries are managed by React Query.
@@ -28,10 +35,11 @@ function useBootstrap(): boolean {
   const setBootstrapProgress = useAppStore((s) => s.setBootstrapProgress);
   const setBootstrapLabel = useAppStore((s) => s.setBootstrapLabel);
   const setSelectedByteId = useAppStore((s) => s.setSelectedByteId);
+  const authToken = useAppStore((s) => s.authToken);
 
   const { data, status, error } = useQuery({
-    queryKey: ['bootstrap'],
-    queryFn: () => api.bootstrap(),
+    queryKey: ["bootstrap", authToken],
+    queryFn: () => rustApi.bootstrap(authToken),
     retry: 0,
     staleTime: Infinity,
     gcTime: Infinity,
@@ -39,11 +47,11 @@ function useBootstrap(): boolean {
 
   // Animate progress labels while the query is in-flight
   React.useEffect(() => {
-    if (status !== 'pending') return;
-    setBootstrapLabel('Initializing Session');
+    if (status !== "pending") return;
+    setBootstrapLabel("Initializing Session");
     setBootstrapProgress(0.3);
     const t1 = setTimeout(() => {
-      setBootstrapLabel('Syncing Knowledge Feed');
+      setBootstrapLabel("Syncing Knowledge Feed");
       setBootstrapProgress(0.62);
     }, 1500);
     const t2 = setTimeout(() => setBootstrapProgress(0.85), 3500);
@@ -55,25 +63,24 @@ function useBootstrap(): boolean {
 
   // Hydrate store on success / fall back gracefully on error
   React.useEffect(() => {
-    if (status === 'success' && data) {
+    if (status === "success" && data) {
       if (data.token && data.user) {
         setAuth(data.token, data.user);
         setSavedBytes(data.savedFactIds);
         if (data.onboarding) setOnboarding(data.onboarding);
       }
-      setBytes(data.facts);
-      setSelectedByteId(data.facts[1]?.id ?? data.facts[0]?.id ?? null);
+      // Only set bytes if API returned content; keep preloaded otherwise
+      if (data.facts && data.facts.length > 0) {
+        setBytes(data.facts);
+      }
+      setSelectedByteId(data.facts?.[1]?.id ?? data.facts?.[0]?.id ?? null);
       setLeaderboard(data.leaderboard.entries, data.leaderboard.season);
-      setBootstrapLabel('Neural Accelerator Ready');
+      setBootstrapLabel("Neural Accelerator Ready");
       setBootstrapProgress(1);
-    } else if (status === 'error') {
-      setBootstrapLabel('Offline Mode Ready');
+    } else if (status === "error") {
+      setBootstrapLabel("Ready");
       setBootstrapProgress(1);
-      setErrorMessage(
-        error instanceof Error
-          ? `${error.message}. Using local mock data until the API is reachable.`
-          : 'Could not reach the API. Using local mock data until the API is reachable.'
-      );
+      // Don't show error — let preloaded content work offline
     }
   }, [
     status,
@@ -90,7 +97,7 @@ function useBootstrap(): boolean {
     setSelectedByteId,
   ]);
 
-  return status === 'pending';
+  return status === "pending";
 }
 
 export function useAppState() {
@@ -99,6 +106,20 @@ export function useAppState() {
   const currentScreen = useAppStore((s) => s.currentScreen);
   const authToken = useAppStore((s) => s.authToken);
   const user = useAppStore((s) => s.user);
+
+  // Restore persisted auth on app start
+  React.useEffect(() => {
+    AsyncStorage.getItem("auth_token").then((token) => {
+      if (!token) return;
+      AsyncStorage.getItem("auth_user").then((userStr) => {
+        if (!userStr) return;
+        try {
+          const user = JSON.parse(userStr);
+          useAppStore.getState().setAuth(token, user);
+        } catch {}
+      });
+    });
+  }, []);
   const bytes = useAppStore((s) => s.bytes);
   const savedBytes = useAppStore((s) => s.savedBytes);
   const selectedByteId = useAppStore((s) => s.selectedByteId);
@@ -121,58 +142,107 @@ export function useAppState() {
   const setAuth = useAppStore((s) => s.setAuth);
   const setSavedBytes = useAppStore((s) => s.setSavedBytes);
   const setOnboarding = useAppStore((s) => s.setOnboarding);
-  const setHasCompletedOnboarding = useAppStore((s) => s.setHasCompletedOnboarding);
+  const setHasCompletedOnboarding = useAppStore(
+    (s) => s.setHasCompletedOnboarding,
+  );
   const setIsSavingOnboarding = useAppStore((s) => s.setIsSavingOnboarding);
   const setErrorMessage = useAppStore((s) => s.setErrorMessage);
   const updateOnboardingPoisonFn = useAppStore((s) => s.updateOnboardingPoison);
   const updateOnboardingGoalFn = useAppStore((s) => s.updateOnboardingGoal);
-  const updateOnboardingInterruptsFn = useAppStore((s) => s.updateOnboardingInterrupts);
+  const updateOnboardingInterruptsFn = useAppStore(
+    (s) => s.updateOnboardingInterrupts,
+  );
   const setInterruptOverlay = useAppStore((s) => s.setInterruptOverlay);
   const interruptOverlayVisible = useAppStore((s) => s.interruptOverlayVisible);
 
   // Screens where an interrupt would disrupt active learning — suppress here
-  const LEARNING_SCREENS = ['fact-detail', 'interactive', 'focus',
-    'onboarding-poison', 'onboarding-goal', 'onboarding-interrupt'] as const;
+  const LEARNING_SCREENS = [
+    "fact-detail",
+    "interactive",
+    "focus",
+    "onboarding-poison",
+    "onboarding-goal",
+    "onboarding-interrupt",
+  ] as const;
 
   // Stable ref so closures (timer, native event) always read the latest screen
   const currentScreenRef = React.useRef(currentScreen);
   const interruptVisibleRef = React.useRef(interruptOverlayVisible);
-  React.useEffect(() => { currentScreenRef.current = currentScreen; }, [currentScreen]);
-  React.useEffect(() => { interruptVisibleRef.current = interruptOverlayVisible; }, [interruptOverlayVisible]);
+  React.useEffect(() => {
+    currentScreenRef.current = currentScreen;
+  }, [currentScreen]);
+  React.useEffect(() => {
+    interruptVisibleRef.current = interruptOverlayVisible;
+  }, [interruptOverlayVisible]);
 
   const isBusyLearning = () =>
-    (LEARNING_SCREENS as readonly string[]).includes(currentScreenRef.current) ||
-    interruptVisibleRef.current;
+    (LEARNING_SCREENS as readonly string[]).includes(
+      currentScreenRef.current,
+    ) || interruptVisibleRef.current;
 
-  const navigate = React.useCallback((screen: Screen) => {
-    if (!authToken && screen === 'leaderboard') {
-      setPendingScreen('leaderboard');
-      setScreen('register');
-      return;
-    }
-    setScreen(screen);
-  }, [authToken, setScreen, setPendingScreen]);
+  const navigate = React.useCallback(
+    (screen: Screen) => {
+      if (!authToken && screen === "leaderboard") {
+        setPendingScreen("leaderboard");
+        setScreen("register");
+        return;
+      }
+      setScreen(screen);
+    },
+    [authToken, setScreen, setPendingScreen],
+  );
 
   React.useEffect(() => {
     if (!splashComplete || isBootstrapping) return;
-    setScreen(hasCompletedOnboarding ? 'feed' : 'onboarding-poison');
+    setScreen(hasCompletedOnboarding ? "feed" : "onboarding-poison");
   }, [splashComplete, isBootstrapping, hasCompletedOnboarding, setScreen]);
+
+  const skipByte = React.useCallback(
+    async (id: string, dwellTimeMs: number) => {
+      if (!authToken) return;
+      const dwellSec = Math.round(dwellTimeMs / 1000);
+      rustApi
+        .learnInteraction(authToken, id, "skip", dwellSec, 0.0)
+        .catch(() => {});
+    },
+    [authToken],
+  );
 
   const saveByte = React.useCallback(
     async (id: string) => {
       if (!authToken) {
-        setPendingScreen('feed');
-        setScreen('register');
+        setPendingScreen("feed");
+        setScreen("register");
         return;
       }
       addSavedByte(id);
       try {
-        await api.saveFact(authToken, id);
+        await rustApi.saveFact(authToken, id);
+        // Also send a learning signal with rating=1.0 (strong save)
+        const result = await rustApi.learnInteraction(
+          authToken,
+          id,
+          "save",
+          0,
+          1.0,
+        );
+        // Update user XP locally so header reflects it
+        const store = useAppStore.getState();
+        if (store.user && result.reward >= 0.5) {
+          store.setUser({
+            ...store.user,
+            xp: store.user.xp + Math.round(result.reward * 10),
+            streak: store.user.streak + 1,
+            learnedBytes: store.user.learnedBytes + 1,
+          });
+        }
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Could not save this byte.');
+        setErrorMessage(
+          err instanceof Error ? err.message : "Could not save this byte.",
+        );
       }
     },
-    [authToken, addSavedByte, setErrorMessage, setPendingScreen, setScreen]
+    [authToken, addSavedByte, setErrorMessage, setPendingScreen, setScreen],
   );
 
   const removeByte = React.useCallback(
@@ -180,55 +250,135 @@ export function useAppState() {
       removeSavedByte(id);
       if (!authToken) return;
       try {
-        await api.unsaveFact(authToken, id);
+        await rustApi.unsaveFact(authToken, id);
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Could not remove this byte.');
+        setErrorMessage(
+          err instanceof Error ? err.message : "Could not remove this byte.",
+        );
       }
     },
-    [authToken, removeSavedByte, setErrorMessage]
+    [authToken, removeSavedByte, setErrorMessage],
   );
 
   // Always open fact-detail — the Morse Code byte shows a "Start Lesson" CTA inside FactDetail
   const selectByte = React.useCallback(
     (id: string) => {
       setSelectedByteId(id);
-      setScreen('fact-detail');
+      setScreen("fact-detail");
     },
-    [setSelectedByteId, setScreen]
+    [setSelectedByteId, setScreen],
   );
 
   const completeInteractiveLesson = React.useCallback(() => {
-    setScreen('feed');
+    setScreen("feed");
   }, [setScreen]);
 
   const _saveOnboardingAndNavigate = React.useCallback(
     async (overrideProfile?: Partial<typeof onboarding>) => {
-      const finalProfile = overrideProfile ? { ...onboarding, ...overrideProfile } : onboarding;
+      const finalProfile = overrideProfile
+        ? { ...onboarding, ...overrideProfile }
+        : onboarding;
       setIsSavingOnboarding(true);
       try {
         if (authToken) {
-          const profile = await api.upsertOnboarding(authToken, finalProfile);
+          const profile = await rustApi.upsertOnboarding(
+            authToken,
+            finalProfile,
+          );
           setOnboarding(profile);
         } else {
           setHasCompletedOnboarding(true);
         }
-        setScreen('feed');
+        setScreen("feed");
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Could not save onboarding.');
+        setErrorMessage(
+          err instanceof Error ? err.message : "Could not save onboarding.",
+        );
       } finally {
         setIsSavingOnboarding(false);
       }
     },
-    [authToken, onboarding, setScreen, setIsSavingOnboarding, setOnboarding, setHasCompletedOnboarding, setErrorMessage]
+    [
+      authToken,
+      onboarding,
+      setScreen,
+      setIsSavingOnboarding,
+      setOnboarding,
+      setHasCompletedOnboarding,
+      setErrorMessage,
+    ],
   );
 
   const finishOnboardingStep = React.useCallback(async () => {
-    if (currentScreen === 'onboarding-poison') { setScreen('onboarding-goal'); return; }
-    if (currentScreen === 'onboarding-goal') { setScreen('onboarding-interrupt'); return; }
-    // Interrupt step — user clicked "Enable Interrupts" (permission already handled in UI)
-    updateOnboardingInterruptsFn(true);
-    await _saveOnboardingAndNavigate({ interruptsEnabled: true });
-  }, [currentScreen, setScreen, updateOnboardingInterruptsFn, _saveOnboardingAndNavigate]);
+    if (currentScreen === "onboarding-poison") {
+      setScreen("onboarding-goal");
+      return;
+    }
+    // After goal: auto-register with interests from onboarding, go to feed
+    setIsSavingOnboarding(true);
+    try {
+      // Parse "name|||interests" from selectedPoison
+      const raw = onboarding.selectedPoison || "";
+      const parts = raw.split("|||");
+      const name = (parts[0] || "Learner").trim();
+      const interests = (parts[1] || parts[0] || "")
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      const resp = await fetch(`${API_BASE}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, interests }),
+      });
+      if (!resp.ok) throw new Error("Registration failed");
+      const data = await resp.json();
+      const newUser = {
+        id: data.user.id,
+        name: data.user.name,
+        avatar: "",
+        xp: 0,
+        streak: 0,
+        focusMinutes: 0,
+        learnedBytes: 0,
+        rank: 1,
+      };
+      setAuth(data.token, newUser);
+
+      // Use preloaded content as initial feed
+      if (data.preloaded && data.preloaded.length > 0) {
+        const preBytes = data.preloaded.map((b: any) => ({
+          id: b.id,
+          title: b.title,
+          content: b.content,
+          category: b.category,
+          source: b.source || "preloaded",
+          format: b.format,
+          game: b.game,
+        }));
+        useAppStore.getState().setBytes(preBytes);
+      }
+
+      setOnboarding({ ...onboarding, selectedPoison: interests.join(", ") });
+      setHasCompletedOnboarding(true);
+      setScreen("feed");
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Could not register.",
+      );
+      setScreen("register");
+    } finally {
+      setIsSavingOnboarding(false);
+    }
+  }, [
+    currentScreen,
+    onboarding,
+    setAuth,
+    setScreen,
+    setOnboarding,
+    setHasCompletedOnboarding,
+    setIsSavingOnboarding,
+    setErrorMessage,
+  ]);
 
   const skipInterrupts = React.useCallback(async () => {
     updateOnboardingInterruptsFn(false);
@@ -238,26 +388,29 @@ export function useAppState() {
   const toggleInterrupts = React.useCallback(
     async (enabled: boolean) => {
       if (enabled) {
-        if (Platform.OS === 'android') {
+        if (Platform.OS === "android") {
           Alert.alert(
-            'Draw Over Other Apps',
+            "Draw Over Other Apps",
             'To interrupt your doomscrolling, BrainByte needs the "Display over other apps" permission.\n\nOpen Settings → Apps → Special App Access → Display over other apps.',
             [
-              { text: 'Not Now', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => Linking.openSettings() },
-            ]
+              { text: "Not Now", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ],
           );
           // Proceed optimistically — user has been guided to grant it
         } else {
           const { status } = await Notifications.requestPermissionsAsync();
-          if (status !== 'granted') {
+          if (status !== "granted") {
             Alert.alert(
-              'Permission Needed',
-              'Allow notifications for BrainByte in Settings to receive interrupts.',
+              "Permission Needed",
+              "Allow notifications for BrainByte in Settings to receive interrupts.",
               [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openURL('app-settings:') },
-              ]
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Open Settings",
+                  onPress: () => Linking.openURL("app-settings:"),
+                },
+              ],
             );
             return;
           }
@@ -266,13 +419,20 @@ export function useAppState() {
       updateOnboardingInterruptsFn(enabled);
       if (authToken) {
         try {
-          await api.upsertOnboarding(authToken, { ...onboarding, interruptsEnabled: enabled });
+          await rustApi.upsertOnboarding(authToken, {
+            ...onboarding,
+            interruptsEnabled: enabled,
+          });
         } catch (err) {
-          setErrorMessage(err instanceof Error ? err.message : 'Could not update interrupt setting.');
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : "Could not update interrupt setting.",
+          );
         }
       }
     },
-    [authToken, onboarding, updateOnboardingInterruptsFn, setErrorMessage]
+    [authToken, onboarding, updateOnboardingInterruptsFn, setErrorMessage],
   );
 
   const showInterrupt = React.useCallback(() => {
@@ -328,44 +488,135 @@ export function useAppState() {
     };
   }, [onboarding.interruptsEnabled, onboarding.dailyGoal]);
 
-  const selectedByte = bytes.find((b) => b.id === selectedByteId) ?? bytes[0] ?? null;
+  const selectedByte =
+    bytes.find((b) => b.id === selectedByteId) ?? bytes[0] ?? null;
 
   const register = React.useCallback(
     async (name: string, email: string, password: string) => {
       setIsSavingOnboarding(true);
       try {
-        const { token, user: newUser } = await api.register(name, email, password);
-        setAuth(token, newUser);
-        const profile = await api.upsertOnboarding(token, onboarding);
-        setOnboarding(profile);
+        // Parse interests from password param (JSON array from Register component)
+        let interests: string[] = [];
+        try {
+          const parsed = JSON.parse(password);
+          if (Array.isArray(parsed)) interests = parsed;
+        } catch {
+          // Fallback: if password is a user_id, ignore. Use onboarding interests.
+          const raw = onboarding.selectedPoison || "";
+          interests = raw
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+
+        // Call v2 register directly
+        const resp = await fetch(`${API_BASE}/api/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, interests }),
+        });
+        if (!resp.ok) throw new Error("Registration failed");
+        const data = await resp.json();
+        const v2Token = data.token;
+        const v2User = {
+          id: data.user.id,
+          name: data.user.name,
+          avatar: "",
+          xp: 0,
+          streak: 0,
+          focusMinutes: 0,
+          learnedBytes: 0,
+          rank: 1,
+        };
+        setAuth(v2Token, v2User);
+
+        // Set preloaded bytes from server response
+        if (data.preloaded && data.preloaded.length > 0) {
+          const preBytes = data.preloaded.map((b: any) => ({
+            id: b.id,
+            title: b.title,
+            content: b.content,
+            category: b.category,
+            source: b.source || "preloaded",
+            format: b.format || "fact",
+            game: b.game,
+          }));
+          useAppStore.getState().setBytes(preBytes);
+        }
+
+        // Update onboarding with first interest
+        if (interests.length > 0) {
+          setOnboarding({
+            ...onboarding,
+            selectedPoison: interests[0],
+          });
+        }
+
         const pendingScreen = useAppStore.getState().pendingScreen;
         setPendingScreen(null);
-        setScreen(pendingScreen ?? 'feed');
+        setScreen(pendingScreen ?? "feed");
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Could not create your profile.');
+        setErrorMessage(
+          err instanceof Error ? err.message : "Could not create your profile.",
+        );
       } finally {
         setIsSavingOnboarding(false);
       }
     },
-    [onboarding, setAuth, setOnboarding, setScreen, setPendingScreen, setIsSavingOnboarding, setErrorMessage]
+    [
+      onboarding,
+      setAuth,
+      setOnboarding,
+      setScreen,
+      setPendingScreen,
+      setIsSavingOnboarding,
+      setErrorMessage,
+    ],
   );
 
   const login = React.useCallback(
     async (email: string, password: string) => {
       setIsSavingOnboarding(true);
       try {
-        const { token, user: loggedUser } = await api.login(email, password);
-        setAuth(token, loggedUser);
+        // v2: email field = user_id
+        const resp = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: email }),
+        });
+        if (!resp.ok) throw new Error("User not found");
+        const data = await resp.json();
+        const loggedUser = {
+          id: data.user.id,
+          name: data.user.name,
+          avatar: "",
+          xp: 0,
+          streak: 0,
+          focusMinutes: 0,
+          learnedBytes: 0,
+          rank: 1,
+        };
+        setAuth(data.token, loggedUser);
         const pending = useAppStore.getState().pendingScreen;
         setPendingScreen(null);
-        setScreen(pending ?? 'feed');
+        setScreen(pending ?? "feed");
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Incorrect email or password.');
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "User not found. Use your user ID to sign in.",
+        );
       } finally {
         setIsSavingOnboarding(false);
       }
     },
-    [setAuth, setScreen, setPendingScreen, setIsSavingOnboarding, setErrorMessage]
+    [
+      setAuth,
+      setScreen,
+      setPendingScreen,
+      setIsSavingOnboarding,
+      setErrorMessage,
+    ],
   );
 
   const updateAvatar = React.useCallback(
@@ -374,12 +625,14 @@ export function useAppState() {
       const setUser = useAppStore.getState().setUser;
       setUser({ ...user, avatar: uri });
       try {
-        await api.updateAvatar(authToken, uri);
+        // Rust API doesn't have avatar update yet; just set locally
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Could not update avatar.');
+        setErrorMessage(
+          err instanceof Error ? err.message : "Could not update avatar.",
+        );
       }
     },
-    [authToken, user, setErrorMessage]
+    [authToken, user, setErrorMessage],
   );
 
   return {
@@ -400,6 +653,7 @@ export function useAppState() {
     navigate,
     completeSplash: () => setSplashComplete(true),
     saveByte,
+    skipByte,
     removeByte,
     selectByte,
     completeInteractiveLesson,

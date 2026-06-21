@@ -1,16 +1,16 @@
 export type Screen =
-  | 'splash'
-  | 'onboarding-poison'
-  | 'onboarding-goal'
-  | 'onboarding-interrupt'
-  | 'feed'
-  | 'fact-detail'
-  | 'focus'
-  | 'library'
-  | 'leaderboard'
-  | 'interactive'
-  | 'register'
-  | 'profile';
+  | "splash"
+  | "onboarding-poison"
+  | "onboarding-goal"
+  | "onboarding-interrupt"
+  | "feed"
+  | "fact-detail"
+  | "focus"
+  | "library"
+  | "leaderboard"
+  | "interactive"
+  | "register"
+  | "profile";
 
 export interface Byte {
   id: string;
@@ -26,6 +26,8 @@ export interface Byte {
   progress?: number;
   savedAt?: string;
   interactive?: boolean;
+  format?: string;
+  game?: any;
 }
 
 export interface UserProfile {

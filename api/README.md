@@ -1,6 +1,6 @@
 # BrainByte API
 
-Rust API server for the BrainByte mobile/web clients. The server is intentionally simple: it uses in-memory state seeded from the current frontend mock data so the UI can be wired to real endpoints before a database exists.
+Rust API server for the BrainByte mobile/web clients. Uses in-memory state seeded from the frontend data so the UI can be wired to real endpoints before a database exists. Proxies recommendation and learning requests to the RL-CoT agent backend (port 8090).
 
 ## Run
 
@@ -74,6 +74,9 @@ Payload:
 
 ### Facts
 
+- `GET /facts/recommended` — Agent-ranked recommendations with CoT trace
+- `GET /facts/recommended?n_results=5`
+- `POST /facts/learn` — Send interaction signal to RL agent
 - `GET /facts`
 - `GET /facts?saved_only=true`
 - `GET /facts?category=Psychology`
@@ -90,6 +93,17 @@ Generator payload:
 {
   "category": "Psychology",
   "prompt": "why unfinished tasks keep buzzing in my head"
+}
+```
+
+Learn payload:
+
+```json
+{
+  "content_id": "fact-1",
+  "action": "save",
+  "dwell_time": 12.5,
+  "rating": 1.0
 }
 ```
 

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Gradient for the primary mark -->
+    <linearGradient id="bbGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b6a0ff"/>
+      <stop offset="100%" stop-color="#00e3fd"/>
+    </linearGradient>
+    <!-- Subtle glow -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark background circle -->
+  <circle cx="256" cy="256" r="252" fill="#0a0a0a"/>
+  <circle cx="256" cy="256" r="252" fill="none" stroke="#1a1a1a" stroke-width="4"/>
+
+  <!-- Subtle ring -->
+  <circle cx="256" cy="256" r="246" fill="none" stroke="#b6a0ff" stroke-width="1.5" opacity="0.3"/>
+
+  <!-- Primary "B" logomark -->
+  <g filter="url(#glow)">
+    <!-- Left stem -->
+    <rect x="170" y="128" width="36" height="256" rx="18" fill="url(#bbGradient)"/>
+
+    <!-- Upper bowl -->
+    <path d="M206 128 Q206 128 242 128 Q300 128 300 192 Q300 232 270 248 Q300 260 300 308 Q300 366 242 384 Q206 384 206 384"
+          fill="none" stroke="url(#bbGradient)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Inner cutout for upper bowl -->
+    <ellipse cx="260" cy="206" rx="72" ry="42" fill="#0a0a0a" opacity="0.65"/>
+    <!-- Inner cutout for lower bowl -->
+    <ellipse cx="260" cy="322" rx="72" ry="42" fill="#0a0a0a" opacity="0.65"/>
+  </g>
+
+  <!-- Data dots (circuit/brain nodes) -->
+  <circle cx="134" cy="170" r="5" fill="#00e3fd" opacity="0.6"/>
+  <circle cx="134" cy="230" r="3" fill="#b6a0ff" opacity="0.5"/>
+  <circle cx="134" cy="290" r="5" fill="#00e3fd" opacity="0.6"/>
+  <circle cx="134" cy="350" r="3" fill="#b6a0ff" opacity="0.4"/>
+
+  <!-- Right-side data dots -->
+  <circle cx="380" cy="180" r="4" fill="#00e3fd" opacity="0.5"/>
+  <circle cx="380" cy="250" r="5" fill="#b6a0ff" opacity="0.6"/>
+  <circle cx="380" cy="320" r="4" fill="#00e3fd" opacity="0.5"/>
+
+  <!-- Small accent line -->
+  <line x1="134" y1="170" x2="134" y2="230" stroke="#00e3fd" stroke-width="1.5" opacity="0.3"/>
+  <line x1="380" y1="250" x2="380" y2="320" stroke="#b6a0ff" stroke-width="1.5" opacity="0.3"/>
+</svg>

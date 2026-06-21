@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, user-scalable=no"
+        />
+        <title>BrainByte — Self-Learning Curation</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #0a0a0f;
+                color: #e0e0e0;
+                overflow: hidden;
+                height: 100dvh;
+            }
+            #app {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* Screens */
+            .screen {
+                display: none;
+                flex: 1;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+                height: 100%;
+            }
+            .screen.active {
+                display: flex;
+            }
+
+            /* Onboarding */
+            .onboard-title {
+                font-size: 28px;
+                font-weight: 800;
+                margin-bottom: 8px;
+                background: linear-gradient(135deg, #b6a0ff, #00e3fd);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .onboard-sub {
+                color: #888;
+                margin-bottom: 32px;
+                text-align: center;
+                font-size: 14px;
+            }
+            .input {
+                width: 100%;
+                max-width: 320px;
+                padding: 14px 16px;
+                border-radius: 12px;
+                border: 1px solid #2a2a3a;
+                background: #14141f;
+                color: #fff;
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+            .interests-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                max-width: 320px;
+                justify-content: center;
+                margin-bottom: 24px;
+            }
+            .interest-chip {
+                padding: 8px 16px;
+                border-radius: 20px;
+                border: 1px solid #2a2a3a;
+                background: #14141f;
+                color: #999;
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .interest-chip.selected {
+                border-color: #b6a0ff;
+                color: #b6a0ff;
+                background: #1a1a2e;
+            }
+            .btn {
+                padding: 14px 40px;
+                border-radius: 12px;
+                border: none;
+                font-size: 16px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .btn-primary {
+                background: linear-gradient(135deg, #b6a0ff, #7c6fd4);
+                color: #fff;
+                width: 100%;
+                max-width: 320px;
+            }
+            .btn-primary:active {
+                opacity: 0.8;
+            }
+            .btn-secondary {
+                background: #1a1a2e;
+                color: #b6a0ff;
+                border: 1px solid #2a2a3a;
+            }
+
+            /* Feed */
+            .feed-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 24px;
+                padding-top: env(safe-area-inset-top, 16px);
+                background: #0a0a0f;
+                z-index: 10;
+            }
+            .feed-stats {
+                display: flex;
+                gap: 16px;
+                font-size: 12px;
+                color: #888;
+            }
+            .feed-stats span {
+                color: #b6a0ff;
+                font-weight: 700;
+            }
+            .card-area {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+            }
+            .card {
+                position: absolute;
+                width: 90%;
+                max-width: 380px;
+                background: #14141f;
+                border-radius: 20px;
+                padding: 28px;
+                border: 1px solid #2a2a3a;
+                transition:
+                    transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1.2),
+                    opacity 0.3s;
+                cursor: grab;
+                user-select: none;
+            }
+            .card:active {
+                cursor: grabbing;
+            }
+            .card-category {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                background: #1a1a2e;
+                color: #b6a0ff;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 16px;
+            }
+            .card-title {
+                font-size: 20px;
+                font-weight: 800;
+                line-height: 1.3;
+                margin-bottom: 12px;
+                color: #fff;
+            }
+            .card-content {
+                font-size: 14px;
+                line-height: 1.6;
+                color: #aaa;
+                margin-bottom: 20px;
+            }
+            .card-meta {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 11px;
+                color: #666;
+            }
+            .card-source {
+                color: #555;
+            }
+            .card-difficulty {
+                padding: 3px 8px;
+                border-radius: 8px;
+                font-size: 10px;
+                font-weight: 700;
+            }
+            .diff-beginner {
+                background: #1a2e1a;
+                color: #4ade80;
+            }
+            .diff-intermediate {
+                background: #2e2a1a;
+                color: #facc15;
+            }
+            .diff-advanced {
+                background: #2e1a1a;
+                color: #f87171;
+            }
+            .agent-reason {
+                font-size: 11px;
+                color: #555;
+                margin-top: 12px;
+                font-style: italic;
+            }
+
+            /* Action buttons */
+            .actions {
+                display: flex;
+                gap: 16px;
+                padding: 20px 24px;
+                padding-bottom: env(safe-area-inset-bottom, 20px);
+                justify-content: center;
+            }
+            .action-btn {
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                border: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.15s;
+                font-size: 22px;
+            }
+            .action-skip {
+                background: #1a1a2e;
+                color: #888;
+            }
+            .action-skip:active {
+                background: #2a1a1a;
+                color: #f87171;
+            }
+            .action-learn {
+                background: linear-gradient(135deg, #b6a0ff, #7c6fd4);
+                color: #fff;
+                width: 64px;
+                height: 64px;
+                font-size: 14px;
+                font-weight: 700;
+            }
+            .action-save {
+                background: #1a1a2e;
+                color: #888;
+            }
+            .action-save:active {
+                background: #1a2e1a;
+                color: #4ade80;
+            }
+
+            /* Loading */
+            .loader {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 40px;
+            }
+            .spinner {
+                width: 24px;
+                height: 24px;
+                border: 3px solid #2a2a3a;
+                border-top-color: #b6a0ff;
+                border-radius: 50%;
+                animation: spin 0.6s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* Toast */
+            .toast {
+                position: fixed;
+                bottom: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #1a2e1a;
+                color: #4ade80;
+                padding: 10px 20px;
+                border-radius: 20px;
+                font-size: 13px;
+                font-weight: 700;
+                z-index: 100;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+            .toast.show {
+                opacity: 1;
+            }
+            .toast.skip-toast {
+                background: #2e1a1a;
+                color: #f87171;
+            }
+
+            /* Login */
+            .login-link {
+                margin-top: 16px;
+                font-size: 13px;
+                color: #888;
+            }
+            .login-link a {
+                color: #b6a0ff;
+                cursor: pointer;
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app"></div>
+        <div id="toast" class="toast"></div>
+
+        <script>
+            const API = "/api";
+
+            function showToast(msg, type) {
+                const t = document.getElementById("toast");
+                t.textContent = msg;
+                t.className = "toast " + (type || "") + " show";
+                setTimeout(() => t.classList.remove("show"), 1500);
+            }
+
+            // ── State ──
+            let state = {
+                screen: "onboard",
+                token: null,
+                user: null,
+                bytes: [],
+                currentIdx: 0,
+                isLoading: false,
+            };
+
+            const ALL_INTERESTS = [
+                "Physics",
+                "Biology",
+                "Neuroscience",
+                "History",
+                "Psychology",
+                "Philosophy",
+                "Technology",
+                "Mathematics",
+                "Economics",
+                "Astronomy",
+                "Chemistry",
+                "Art History",
+                "Music Theory",
+                "Political Science",
+                "Computer Science",
+            ];
+
+            // ── API helpers ──
+            async function api(method, path, body) {
+                const headers = {};
+                if (state.token)
+                    headers["Authorization"] = "Bearer " + state.token;
+                if (body) headers["Content-Type"] = "application/json";
+                const resp = await fetch(API + path, {
+                    method,
+                    headers,
+                    body: body ? JSON.stringify(body) : undefined,
+                });
+                if (!resp.ok) {
+                    const err = await resp
+                        .json()
+                        .catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || "Request failed");
+                }
+                return resp.json();
+            }
+
+            // ── Render ──
+            function render() {
+                const app = document.getElementById("app");
+                switch (state.screen) {
+                    case "onboard":
+                        renderOnboard(app);
+                        break;
+                    case "feed":
+                        renderFeed(app);
+                        break;
+                    case "loading":
+                        renderLoading(app);
+                        break;
+                }
+            }
+
+            function renderOnboard(app) {
+                app.innerHTML = `
+    <div class="screen active" id="onboard-screen">
+      <div class="onboard-title">BrainByte</div>
+      <div class="onboard-sub">An AI agent learns what you love,<br>then curates knowledge just for you.</div>
+      <input class="input" id="name-input" placeholder="Your name" autocomplete="off">
+      <div class="interests-grid" id="interests-grid">
+        ${ALL_INTERESTS.map(
+            (i) => `
+          <div class="interest-chip" data-interest="${i}">${i}</div>
+        `,
+        ).join("")}
+      </div>
+      <button class="btn btn-primary" id="start-btn">Start Learning</button>
+      <div class="login-link">
+        Returning? <a id="login-link">Sign in with ID</a>
+      </div>
+    </div>
+  `;
+
+                const chips = document.querySelectorAll(".interest-chip");
+                const selected = new Set();
+                chips.forEach((c) => {
+                    c.addEventListener("click", () => {
+                        if (selected.has(c.dataset.interest)) {
+                            selected.delete(c.dataset.interest);
+                            c.classList.remove("selected");
+                        } else {
+                            selected.add(c.dataset.interest);
+                            c.classList.add("selected");
+                        }
+                    });
+                });
+
+                document
+                    .getElementById("start-btn")
+                    .addEventListener("click", async () => {
+                        const name =
+                            document
+                                .getElementById("name-input")
+                                .value.trim() || "Learner";
+                        const interests = [...selected];
+                        try {
+                            state.screen = "loading";
+                            render();
+                            const data = await api("POST", "/auth/register", {
+                                name,
+                                interests,
+                            });
+                            state.token = data.token;
+                            state.user = data.user;
+                            await loadFeed();
+                            state.screen = "feed";
+                            render();
+                        } catch (e) {
+                            showToast(e.message, "skip-toast");
+                            state.screen = "onboard";
+                            render();
+                        }
+                    });
+
+                document
+                    .getElementById("login-link")
+                    .addEventListener("click", () => {
+                        const id = prompt("Enter your user ID:");
+                        if (!id) return;
+                        (async () => {
+                            try {
+                                state.screen = "loading";
+                                render();
+                                const data = await api("POST", "/auth/login", {
+                                    user_id: id,
+                                });
+                                state.token = data.token;
+                                state.user = data.user;
+                                await loadFeed();
+                                state.screen = "feed";
+                                render();
+                            } catch (e) {
+                                showToast(e.message, "skip-toast");
+                                state.screen = "onboard";
+                                render();
+                            }
+                        })();
+                    });
+            }
+
+            function renderLoading(app) {
+                app.innerHTML = `
+    <div class="screen active">
+      <div class="loader">
+        <div class="spinner"></div>
+        <span style="color:#888">Agent is curating...</span>
+      </div>
+    </div>
+  `;
+            }
+
+            async function loadFeed(count = 10) {
+                const data = await api(
+                    "POST",
+                    "/feed/curate-batch?count=" + count,
+                );
+                state.bytes = data.bytes;
+                state.currentIdx = 0;
+            }
+
+            function renderFeed(app) {
+                const byte = state.bytes[state.currentIdx];
+                const saved = state.user ? state.user._saved || 0 : 0;
+                const skipped = state.user ? state.user._skipped || 0 : 0;
+
+                if (!byte) {
+                    app.innerHTML = `
+      <div class="feed-header">
+        <div style="font-weight:800;font-size:18px">BrainByte</div>
+        <div class="feed-stats">💾 <span>${saved}</span> ⏭ <span>${skipped}</span></div>
+      </div>
+      <div class="screen active" style="justify-content:center">
+        <div class="loader"><span style="color:#888">Loading more bytes...</span></div>
+      </div>
+    `;
+                    loadFeed(5).then(() => render());
+                    return;
+                }
+
+                const diffClass =
+                    byte.difficulty <= 0.3
+                        ? "diff-beginner"
+                        : byte.difficulty <= 0.6
+                          ? "diff-intermediate"
+                          : "diff-advanced";
+                const diffLabel =
+                    byte.difficulty <= 0.3
+                        ? "Beginner"
+                        : byte.difficulty <= 0.6
+                          ? "Intermediate"
+                          : "Advanced";
+
+                app.innerHTML = `
+    <div class="feed-header">
+      <div style="font-weight:800;font-size:18px">BrainByte</div>
+      <div class="feed-stats">💾 <span id="saved-count">${saved}</span> ⏭ <span id="skipped-count">${skipped}</span></div>
+    </div>
+    <div class="card-area" id="card-area">
+      <div class="card" id="card">
+        <div class="card-category">${byte.category || "General"}</div>
+        <div class="card-title">${byte.title}</div>
+        <div class="card-content">${byte.content}</div>
+        <div class="card-meta">
+          <span class="card-source">${byte.source || ""}</span>
+          <span class="card-difficulty ${diffClass}">${diffLabel}</span>
+        </div>
+        <div class="agent-reason">🧠 ${byte.agent_reason || "Agent-curated"}</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="action-btn action-skip" id="btn-skip" title="Skip">✕</button>
+      <button class="action-btn action-learn" id="btn-learn" title="Learn More">▶</button>
+      <button class="action-btn action-save" id="btn-save" title="Save">♥</button>
+    </div>
+  `;
+
+                const card = document.getElementById("card");
+                let startX = 0,
+                    currentX = 0,
+                    isDragging = false;
+                let dwellStart = Date.now();
+
+                function getDwell() {
+                    return (Date.now() - dwellStart) / 1000;
+                }
+
+                card.addEventListener("pointerdown", (e) => {
+                    startX = e.clientX;
+                    isDragging = true;
+                    card.setPointerCapture(e.pointerId);
+                });
+
+                card.addEventListener("pointermove", (e) => {
+                    if (!isDragging) return;
+                    currentX = e.clientX - startX;
+                    const rot = currentX * 0.02;
+                    card.style.transform = `translateX(${currentX}px) rotate(${rot}deg)`;
+                });
+
+                card.addEventListener("pointerup", async (e) => {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    const dx = currentX;
+                    card.style.transition =
+                        "transform .3s cubic-bezier(.25,.8,.25,1.2), opacity .3s";
+                    const dwell = getDwell();
+
+                    if (dx < -80) {
+                        // Skip
+                        card.style.transform =
+                            "translateX(-120%) rotate(-15deg)";
+                        card.style.opacity = "0";
+                        await api("POST", "/feed/interact", {
+                            content_id: byte.id,
+                            action: "skip",
+                            dwell_time: dwell,
+                        }).catch(() => {});
+                        state.user._skipped = (state.user._skipped || 0) + 1;
+                        showToast("Skipped — agent noted", "skip-toast");
+                        nextCard();
+                    } else if (dx > 80) {
+                        // Save
+                        card.style.transform = "translateX(120%) rotate(15deg)";
+                        card.style.opacity = "0";
+                        await api("POST", "/feed/interact", {
+                            content_id: byte.id,
+                            action: "save",
+                            dwell_time: dwell,
+                            rating: 1.0,
+                        }).catch(() => {});
+                        state.user._saved = (state.user._saved || 0) + 1;
+                        showToast("Saved! Agent is learning 🧠");
+                        nextCard();
+                    } else {
+                        card.style.transform = "translateX(0) rotate(0deg)";
+                    }
+                });
+
+                document
+                    .getElementById("btn-skip")
+                    .addEventListener("click", async () => {
+                        const dwell = getDwell();
+                        card.style.transform =
+                            "translateX(-120%) rotate(-15deg)";
+                        card.style.opacity = "0";
+                        await api("POST", "/feed/interact", {
+                            content_id: byte.id,
+                            action: "skip",
+                            dwell_time: dwell,
+                        }).catch(() => {});
+                        state.user._skipped = (state.user._skipped || 0) + 1;
+                        showToast("Skipped — agent noted", "skip-toast");
+                        nextCard();
+                    });
+
+                document
+                    .getElementById("btn-save")
+                    .addEventListener("click", async () => {
+                        const dwell = getDwell();
+                        card.style.transform = "translateX(120%) rotate(15deg)";
+                        card.style.opacity = "0";
+                        await api("POST", "/feed/interact", {
+                            content_id: byte.id,
+                            action: "save",
+                            dwell_time: dwell,
+                            rating: 1.0,
+                        }).catch(() => {});
+                        state.user._saved = (state.user._saved || 0) + 1;
+                        showToast("Saved! Agent is learning 🧠");
+                        nextCard();
+                    });
+
+                document
+                    .getElementById("btn-learn")
+                    .addEventListener("click", () => {
+                        showToast("🔍 " + byte.title);
+                    });
+            }
+
+            function nextCard() {
+                state.currentIdx++;
+                if (state.currentIdx >= state.bytes.length - 2) {
+                    loadFeed(5).then(() => render());
+                } else {
+                    setTimeout(() => render(), 350);
+                }
+            }
+
+            // ── Start ──
+            render();
+        </script>
+    </body>
+</html>
